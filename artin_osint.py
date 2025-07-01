@@ -1,100 +1,52 @@
-import asyncio
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import sys
-import httpx
+import asyncio
+from modules import github, instagram, tiktok, gravatar, email_check, scylla_checker
 from utils.tools import print_info, print_good, print_bad
 
-def print_banner(target):
-    banner = r"""
- ___        __  __       
-/ _ | ___  / /_/ /____ __
-/ __ |/ _ \/ __/ __/ -_) _ \
-/_/ |_/_//_/\__/\__/\__/_//_/
+SERVICES = {
+    "GitHub": github.check,
+    "Instagram": instagram.check,
+    "TikTok": tiktok.check,
+    "Gravatar": gravatar.check,
+    "EmailReset": email_check.check,
+    "Scylla.sh": scylla_checker.check,  # همین‌جا async check اضافه شد
+}
 
-       A R T I N   OSINT
+async def main(target: str):
+    print_info("///")
+    print_info("___        __  __       ")
+    print_info("  / _ | ___  / /_/ /____ __")
+    print_info(" / __ |/ _ \\/ __/ __/ -_) _ \\")
+    print_info("/_/ |_/_//_/\\__/\\__/\\__/_//_/")
+    print_info("")
+    print_info("       A R T I N   O S I N T")
+    print_info("")
+    print_info(f"🔍 Searching for: {target}\n")
 
-🔍 Searching for: {}
-""".format(target)
-    print(banner)
+    # آماده‌سازی همه coroutineها
+    tasks = [func(target) for func in SERVICES.values()]
+    # return_exceptions=True تا اگر یکی خطا داد بقیه ادامه بدن
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-
-async def check_github(target):
-    print_info("Checking GitHub...")
-    username = target.split('@')[0]
-    url = f"https://github.com/{username}"
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(url, timeout=10)
-            if r.status_code == 200:
-                return True, url
-        except Exception:
-            pass
-    return False, None
-
-
-async def check_instagram(target):
-    print_info("Checking Instagram...")
-    username = target.split('@')[0]
-    url = f"https://instagram.com/{username}"
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(url, timeout=10)
-            if r.status_code == 200:
-                return True, url
-        except Exception:
-            pass
-    return False, None
-
-
-async def check_tiktok(target):
-    print_info("Checking TikTok...")
-    username = target.split('@')[0]
-    url = f"https://www.tiktok.com/@{username}"
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(url, timeout=10)
-            if r.status_code == 200:
-                return True, url
-        except Exception:
-            pass
-    return False, None
-
-
-async def check_gravatar(target):
-    print_info("Checking Gravatar...")
-    import hashlib
-    email_hash = hashlib.md5(target.strip().lower().encode()).hexdigest()
-    url = f"https://www.gravatar.com/avatar/{email_hash}?d=404"
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(url, timeout=10)
-            if r.status_code == 200:
-                return True, url
-        except Exception:
-            pass
-    return False, None
-
-
-async def main(target):
-    print_banner(target)
-
-    checks = {
-        "GitHub": check_github,
-        "Instagram": check_instagram,
-        "TikTok": check_tiktok,
-        "Gravatar": check_gravatar,
-    }
-
-    tasks = [func(target) for func in checks.values()]
-    results = await asyncio.gather(*tasks)
-
-    for (service, _), (found, url) in zip(checks.items(), results):
-        symbol = "✅ Found!" if found else "❌ Not Found"
-        extra = f" → {url}" if found else ""
-        print(f"[+] {service:<12} => {symbol}{extra}")
-
+    print()
+    for (name, _), result in zip(SERVICES.items(), results):
+        # اگر exception یا False باشه Not Found
+        if isinstance(result, Exception) or not result:
+            print_bad(f"[+] {name:<12} => ❌ Not Found")
+        else:
+            print_good(f"[+] {name:<12} => ✅ Found")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python artin_osint.py <email>")
+        print_bad("Usage: python artin_osint.py email@example.com")
         sys.exit(1)
-    asyncio.run(main(sys.argv[1]))
+
+    email = sys.argv[1]
+    try:
+        asyncio.run(main(email))
+    except KeyboardInterrupt:
+        print_bad("\n[!] Exited by user")
+        sys.exit(0)
