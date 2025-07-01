@@ -3,7 +3,7 @@
 
 import sys
 import asyncio
-from modules import github, instagram, tiktok, gravatar, email_check, scylla_checker
+from modules import github, instagram, tiktok, gravatar, email_check, breach_checker
 from utils.tools import print_info, print_good, print_bad
 
 SERVICES = {
@@ -12,10 +12,10 @@ SERVICES = {
     "TikTok": tiktok.check,
     "Gravatar": gravatar.check,
     "EmailReset": email_check.check,
-    "Scylla.sh": scylla_checker.check,  # همین‌جا async check اضافه شد
+    "BreachCheck": breach_checker.check
 }
 
-async def main(target: str):
+async def main(target):
     print_info("///")
     print_info("___        __  __       ")
     print_info("  / _ | ___  / /_/ /____ __")
@@ -26,18 +26,17 @@ async def main(target: str):
     print_info("")
     print_info(f"🔍 Searching for: {target}\n")
 
-    # آماده‌سازی همه coroutineها
-    tasks = [func(target) for func in SERVICES.values()]
-    # return_exceptions=True تا اگر یکی خطا داد بقیه ادامه بدن
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    tasks = []
+    for name, func in SERVICES.items():
+        tasks.append(func(target))
+    results = await asyncio.gather(*tasks)
 
     print()
-    for (name, _), result in zip(SERVICES.items(), results):
-        # اگر exception یا False باشه Not Found
-        if isinstance(result, Exception) or not result:
-            print_bad(f"[+] {name:<12} => ❌ Not Found")
-        else:
+    for name, found in zip(SERVICES.keys(), results):
+        if found:
             print_good(f"[+] {name:<12} => ✅ Found")
+        else:
+            print_bad(f"[+] {name:<12} => ❌ Not Found")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

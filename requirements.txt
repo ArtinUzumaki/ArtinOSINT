@@ -1,3 +1,5 @@
 httpx
 requests
 beautifulsoup4
+aiohttp
+lxml
